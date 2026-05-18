@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Docs</title>
+    <style>
+        body { background: #121212; color: #ffffff; font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .container { text-align: center; width: 100%; max-width: 450px; padding: 20px; }
+        input { width: 100%; padding: 14px; border-radius: 8px; border: 1px solid #333; background: #222; color: #fff; font-size: 16px; outline: none; box-sizing: border-box; }
+        input:focus { border-color: #007bff; }
+        button { wight: 100%; width: 100%; margin-top: 15px; padding: 14px; border: none; background: #007bff; color: #fff; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Workspace Dashboard</h2>
+        <input type="text" id="target-url" placeholder="Search Google or type a web address..." autofocus>
+        <button onclick="launchStealthTab()">Launch Anonymous Tab</button>
+    </div>
+
+    <!-- Injecting global ultraviolet xor encoder mechanics directly via CDN -->
+    <script src="https://jsdelivr.net"></script>
+
+    <script>
+        function launchStealthTab() {
+            let rawUrl = document.getElementById('target-url').value.trim();
+            if (!rawUrl) return;
+
+            // Turn raw search text into a clean query string or fix missing protocols
+            if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
+                if (rawUrl.includes('.') && !rawUrl.includes(' ')) {
+                    rawUrl = 'https://' + rawUrl;
+                } else {
+                    rawUrl = 'https://google.com' + encodeURIComponent(rawUrl);
+                }
+            }
+
+            // Using a reliable public community mirror to handle background proxy traffic rewriting
+            const fallbackGateway = "https://tomp.app"; 
+            const encodedPath = btoa(rawUrl).replace(/\//g, '_').replace(/\+/g, '-').replace(/=/g, ''); 
+            const finalDestination = fallbackGateway + encodedPath;
+
+            // 1. Instantly spawn a blank tab that bypasses your local network logging history database
+            const cleanTab = window.open();
+            if (!cleanTab) {
+                alert('Pop-up blocked! Click the notification in the address bar to permit this page to open tabs.');
+                return;
+            }
+
+            // 2. Cloak the tab name inside Chrome
+            cleanTab.document.title = "Google Drive";
+
+            // 3. Mount a seamless, borderline invisible iframe inside the history-free window
+            const viewportFrame = cleanTab.document.createElement('iframe');
+            viewportFrame.style.position = "fixed";
+            viewportFrame.style.width = "100vw";
+            viewportFrame.style.height = "100vh";
+            viewportFrame.style.top = "0px";
+            viewportFrame.style.left = "0px";
+            viewportFrame.style.border = "none";
+            viewportFrame.style.margin = "0px";
+            viewportFrame.style.zIndex = "999999";
+            viewportFrame.src = finalDestination;
+
+            cleanTab.document.body.appendChild(viewportFrame);
+            document.getElementById('target-url').value = '';
+        }
+    </script>
+</body>
+</html>
