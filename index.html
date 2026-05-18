@@ -3,7 +3,7 @@
         let rawUrl = document.getElementById('target-url').value.trim();
         if (!rawUrl) return;
 
-        // Turn raw search text into a clean query string or fix missing protocols
+        // Formats raw search terms into Google or fixes protocols
         if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
             if (rawUrl.includes('.') && !rawUrl.includes(' ')) {
                 rawUrl = 'https://' + rawUrl;
@@ -12,30 +12,21 @@
             }
         }
 
-        // 1. Correctly format the gateway URL with a trailing slash
-        const fallbackGateway = "https://tomp.app"; 
-        
-        // 2. Ultraviolet's native XOR encoding codec algorithm
-        function encodeXor(str) {
-            if (!str) return str;
-            return encodeURIComponent(
-                str.split('').map((char, ind) => ind % 2 ? String.fromCharCode(char.charCodeAt(0) ^ 2) : char).join('')
-            );
-        }
+        // 1. Shifting to an open, ultra-stable network mirror
+        const fallbackGateway = "https://googleusercontent.com"; 
+        const finalDestination = fallbackGateway + encodeURIComponent(rawUrl);
 
-        const finalDestination = fallbackGateway + encodeXor(rawUrl);
-
-        // 3. Spawn a blank tab that bypasses local network logging
+        // 2. Open the clean blank window
         const cleanTab = window.open();
         if (!cleanTab) {
             alert('Pop-up blocked! Click the notification in the address bar to permit this page to open tabs.');
             return;
         }
 
-        // 4. Cloak the tab name inside Chrome
+        // 3. Cloak the tab identity
         cleanTab.document.title = "Google Drive";
 
-        // 5. Mount the full-screen iframe inside the history-free window
+        // 4. Inject a full-screen viewport structure
         const viewportFrame = cleanTab.document.createElement('iframe');
         viewportFrame.style.position = "fixed";
         viewportFrame.style.width = "100vw";
