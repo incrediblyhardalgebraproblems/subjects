@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>DUDE PACK</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#090912;--surface:#0f0f1e;--line:#1e1e32;
+  --txt:#e8e8f4;--dim:#55557a;
+  --common:#7a8a9a;--rare:#4499ff;--epic:#cc44ff;
+  --legendary:#ffaa00;--mythic:#ff2244;
+  --transcendent:#00eeff;--omega:#ff44ff;--singularity:#ffe566;
+  --nav:56px;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,sans-serif;font-size:14px}
+body{display:flex;justify-content:center}
+#app{width:100%;max-width:420px;height:100%;display:flex;flex-direction:column;position:relative;overflow:hidden}
+canvas#fx{position:fixed;inset:0;pointer-events:none;z-index:900;max-width:420px;left:50%;transform:translateX(-50%)}
+
+.view{position:absolute;inset:0;bottom:var(--nav);overflow-y:auto;overflow-x:hidden;display:none;flex-direction:column}
+.view.on{display:flex}
+
+nav{position:absolute;bottom:0;left:0;right:0;height:var(--nav);background:rgba(9,9,18,.97);border-top:1px solid var(--line);display:flex;backdrop-filter:blur(20px);z-index:100}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;color:var(--dim);transition:color .15s;font-size:9px;letter-spacing:1px;font-weight:700;user-select:none}
+.nb svg{width:20px;height:20px;stroke-width:1.7;transition:transform .15s}
+.nb.on{color:var(--txt)}.nb.on svg{transform:scale(1.1)}
+
+/* OPEN */
+#v-open{align-items:center;justify-content:center;gap:24px}
+.pack-card{width:220px;height:300px;border-radius:24px;overflow:hidden;cursor:pointer;position:relative;background:var(--surface);border:1px solid var(--line);transition:transform .12s;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.pack-card:active{transform:scale(.96)}
+.pack-card img{width:100%;height:100%;object-fit:cover;display:block}
+.pack-overlay{position:absolute;bottom:0;left:0;right:0;padding:20px;background:linear-gradient(transparent,rgba(9,9,18,.95))}
+.pack-name{font-size:18px;font-weight:900;letter-spacing:.5px}
+.pack-sub{font-size:10px;color:var(--dim);margin-top:4px;line-height:1.6}
+.open-hint{font-size:9px;color:var(--dim);letter-spacing:2px;text-transform:uppercase}
+
+/* ARENA */
+#arena{position:fixed;inset:0;z-index:500;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;max-width:420px;left:50%;transform:translateX(-50%)}
+#arena.on{display:flex}
+#arena-x{position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--line);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:16px;z-index:10}
+#stack{position:relative;width:270px;height:390px}
+.hint{font-size:9px;color:var(--dim);letter-spacing:1.5px;margin-top:16px;opacity:0;transition:opacity .3s}
+.hint.on{opacity:1}
+#ctr{font-size:10px;color:var(--dim);font-weight:700;margin-top:6px;min-height:16px}
+
+/* CARD */
+.card{position:absolute;inset:0;border-radius:20px;overflow:hidden;background:var(--surface);cursor:grab;user-select:none;touch-action:none;will-change:transform;display:flex;flex-direction:column;border:1px solid var(--line);box-shadow:0 16px 48px rgba(0,0,0,.7)}
+.card:active{cursor:grabbing}
+.card-img{width:100%;height:56%;object-fit:cover;flex-shrink:0;display:block;background:var(--line)}
+.card-body{padding:14px;display:flex;flex-direction:column;gap:5px;flex:1}
+.card-rarity{font-size:9px;letter-spacing:2px;font-weight:700;text-transform:uppercase}
+.card-name{font-size:13px;font-weight:800;line-height:1.3;color:var(--txt)}
+.card-stars{display:flex;gap:3px;align-items:center;margin-top:2px}
+.star{width:7px;height:7px;border-radius:50%}
+.card-dp{font-size:11px;margin-top:auto}
+.shiny-layer{position:absolute;inset:0;pointer-events:none;z-index:3;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.14) 50%,transparent 70%);background-size:250% 100%;animation:shimmer 1.8s linear infinite}
+@keyframes shimmer{0%{background-position:250% 0}100%{background-position:-250% 0}}
+.card[data-r="Common"]{border-color:#7a8a9a44}
+.card[data-r="Rare"]{border-color:var(--rare);box-shadow:0 0 20px #4499ff1a,0 16px 48px rgba(0,0,0,.7)}
+.card[data-r="Epic"]{border-color:var(--epic);box-shadow:0 0 28px #cc44ff22,0 16px 48px rgba(0,0,0,.7)}
+.card[data-r="Legendary"]{border-color:var(--legendary);box-shadow:0 0 32px #ffaa0022,0 16px 48px rgba(0,0,0,.7)}
+.card[data-r="Mythic"]{border-color:var(--mythic);box-shadow:0 0 36px #ff224422,0 16px 48px rgba(0,0,0,.7)}
+.card[data-r="Transcendent"]{border-color:var(--transcendent);box-shadow:0 0 40px #00eeff22,0 16px 48px rgba(0,0,0,.7)}
+.card[data-r="Omega"]{border-color:var(--omega);box-shadow:0 0 44px #ff44ff22,0 16px 48px rgba(0,0,0,.7)}
+.card[data-r="Singularity"]{border-color:var(--singularity);box-shadow:0 0 50px #ffe56633,0 16px 48px rgba(0,0,0,.7)}
+.chain{position:absolute;left:0;right:0;height:15%;pointer-events:none;z-index:4;overflow:hidden}
+.chain.top{top:0}.chain.bot{bottom:0}
+.chain-o{background:repeating-linear-gradient(90deg,transparent 0,transparent 8px,var(--transcendent) 8px,var(--transcendent) 10px);opacity:.6;animation:cblink .4s step-end infinite}
+.chain-s{background:repeating-linear-gradient(90deg,transparent 0,transparent 7px,var(--singularity) 7px,var(--singularity) 9px);opacity:.75;animation:cpulse .9s ease-in-out infinite}
+@keyframes cblink{0%,100%{opacity:.6}50%{opacity:.2}}
+@keyframes cpulse{0%,100%{opacity:.75}50%{opacity:.3}}
+.mask{position:absolute;inset:0;z-index:8;border-radius:19px;display:flex;align-items:center;justify-content:center}
+.mask-gold{background:linear-gradient(135deg,#7a5500,#ffd700,#7a5500)}
+.mask-black{background:#04040a}
+.mask-icon{font-size:60px;animation:mp .5s ease-in-out infinite}
+@keyframes mp{0%,100%{transform:scale(.95)}50%{transform:scale(1.08)}}
+.rpop{position:fixed;top:26%;left:50%;transform:translate(-50%,-50%) scale(0);font-size:40px;font-weight:900;letter-spacing:3px;pointer-events:none;z-index:950;animation:rpop .9s ease forwards}
+@keyframes rpop{0%{transform:translate(-50%,-50%) scale(0);opacity:0}25%{transform:translate(-50%,-50%) scale(1.1);opacity:1}65%{transform:translate(-50%,-50%) scale(1);opacity:1}100%{transform:translate(-50%,-50%) scale(.7);opacity:0}}
+@keyframes shake{0%,100%{transform:translateX(-50%)}15%{transform:translateX(calc(-50% - 5px))}35%{transform:translateX(calc(-50% + 5px))}55%{transform:translateX(calc(-50% - 3px))}75%{transform:translateX(calc(-50% + 3px))}}
+.shaking{animation:shake .15s ease-out}
+.slot-box{position:absolute;inset:0;z-index:10;border-radius:19px;background:#04040a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;cursor:pointer}
+.slot-words{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+.sw{height:32px;min-width:44px;padding:0 9px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+.sw.live{animation:swb .07s steps(1) infinite}
+@keyframes swb{50%{opacity:.15}}
+.sw.locked{border-color:currentColor;animation:swp .2s ease}
+@keyframes swp{0%{transform:scale(.8)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+.slot-hint{font-size:9px;color:var(--dim);letter-spacing:1.5px;animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+
+/* INVENTORY */
+#v-inv{padding:0}
+.inv-head{padding:24px 18px 12px;position:sticky;top:0;background:var(--bg);z-index:50;border-bottom:1px solid var(--line)}
+.inv-head h2{font-size:20px;font-weight:800}
+.inv-meta{font-size:9px;color:var(--dim);margin-top:2px;letter-spacing:1px}
+.inv-search{width:100%;margin-top:12px;padding:10px 14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;color:var(--txt);font-size:12px;outline:none;font-family:inherit;transition:border-color .15s}
+.inv-search:focus{border-color:var(--dim)}
+.chips{display:flex;gap:5px;overflow-x:auto;padding-top:10px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex-shrink:0;padding:4px 10px;border-radius:20px;border:1px solid currentColor;font-size:9px;font-weight:700;letter-spacing:.5px;cursor:pointer;opacity:.35;transition:opacity .15s;background:transparent}
+.chip.on{opacity:1;background:rgba(255,255,255,.06)}
+.inv-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px;padding-bottom:calc(var(--nav)+12px)}
+.icard{border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--surface);cursor:pointer;transition:transform .12s;position:relative}
+.icard:active{transform:scale(.96)}
+.icard img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:var(--line)}
+.icard-body{padding:8px}
+.icard-name{font-size:10px;font-weight:800;line-height:1.3;color:var(--txt)}
+.icard-dp{font-size:10px;margin-top:2px}
+.icard-stars{display:flex;gap:2px;margin-top:4px}
+.sstar{width:5px;height:5px;border-radius:50%}
+.lock-btn{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:6px;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.1);font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2}
+.empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:10px;padding:60px 20px;color:var(--dim);font-size:11px;text-align:center}
+
+/* DETAIL */
+#detail{position:fixed;inset:0;z-index:600;background:rgba(4,4,10,.9);display:none;align-items:flex-end;justify-content:center;max-width:420px;left:50%;transform:translateX(-50%);backdrop-filter:blur(12px)}
+#detail.on{display:flex}
+.dp{width:100%;background:var(--surface);border-radius:20px 20px 0 0;border:1px solid var(--line);border-bottom:none;padding:20px;padding-bottom:calc(var(--nav)+20px)}
+.dp img{width:100%;border-radius:12px;aspect-ratio:16/9;object-fit:cover;margin-bottom:14px;display:block;background:var(--line)}
+.dp-name{font-size:18px;font-weight:900;line-height:1.3}
+.dp-r{font-size:9px;letter-spacing:2px;margin-top:5px;font-weight:700}
+.dp-score{font-size:32px;font-weight:900;margin-top:8px}
+.dp-close{width:100%;margin-top:16px;padding:13px;background:transparent;border:1px solid var(--line);border-radius:10px;color:var(--dim);font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;letter-spacing:1px;transition:border-color .15s}
+.dp-close:active{border-color:var(--dim)}
+
+/* FUSE */
+#v-fuse{padding:24px 14px calc(var(--nav)+14px)}
+#v-fuse h2{font-size:20px;font-weight:800;margin-bottom:4px}
+.sub{font-size:9px;color:var(--dim);margin-bottom:18px;letter-spacing:.5px}
+.fg{margin-bottom:8px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.fg-head{padding:13px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--surface)}
+.fg-noun{font-size:12px;font-weight:800}
+.fg-arr{color:var(--dim);font-size:11px;transition:transform .2s}
+.fg.open .fg-arr{transform:rotate(180deg)}
+.fg-body{display:none;padding:8px;gap:5px;flex-direction:column}
+.fg.open .fg-body{display:flex}
+.fg-row{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:rgba(255,255,255,.02)}
+.fg-rl{font-size:10px;font-weight:700;width:90px;flex-shrink:0}
+.fg-cnt{font-size:10px;color:var(--dim);flex:1;line-height:1.6}
+.fg-btn{padding:5px 12px;border-radius:7px;font-size:10px;font-weight:700;border:1px solid currentColor;cursor:pointer;background:rgba(255,255,255,.03);font-family:inherit;white-space:nowrap;transition:background .15s}
+.fg-btn:not(:disabled):active{background:rgba(255,255,255,.12)}
+.fg-btn:disabled{opacity:.2;cursor:default}
+.fuse-empty{color:var(--dim);font-size:11px;text-align:center;padding:50px 0}
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas>
+<div id="app">
+
+<div id="v-open" class="view on">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:24px">
+    <div class="pack-card" onclick="startPack()">
+      <img src="https://picsum.photos/seed/dudepack42/400/540" alt="Standard Pack" onerror="this.style.background='var(--line)'"/>
+      <div class="pack-overlay">
+        <div class="pack-name">STANDARD PACK</div>
+        <div class="pack-sub">5 cards · All rarities · 1% shiny</div>
+      </div>
+    </div>
+    <div class="open-hint">Tap to open</div>
+  </div>
+</div>
+
+<div id="v-inv" class="view">
+  <div class="inv-head">
+    <h2>COLLECTION</h2>
+    <div class="inv-meta" id="inv-meta">0 DUDES</div>
+    <input class="inv-search" id="inv-search" placeholder="search… (try: admincore)" oninput="onSearch(this.value)" spellcheck="false" autocomplete="off"/>
+    <div class="chips" id="chips"></div>
+  </div>
+  <div class="inv-grid" id="inv-grid"></div>
+</div>
+
+<div id="v-fuse" class="view">
+  <h2>FUSE</h2>
+  <div class="sub">Sacrifice duplicates → forge higher tiers</div>
+  <div id="fuse-body"></div>
+</div>
+
+<nav>
+  <div class="nb on" id="nb-open" onclick="goView('open',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="3"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+    OPEN
+  </div>
+  <div class="nb" id="nb-inv" onclick="goView('inv',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/></svg>
+    COLLECT
+  </div>
+  <div class="nb" id="nb-fuse" onclick="goView('fuse',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    FUSE
+  </div>
+</nav>
+</div>
+
+<div id="arena">
+  <div id="arena-x" onclick="closeArena()">✕</div>
+  <div id="stack"></div>
+  <div class="hint" id="hint">← swipe to discard →</div>
+  <div id="ctr"></div>
+</div>
+
+<div id="detail" onclick="closeDetail()">
+  <div class="dp" onclick="event.stopPropagation()">
+    <img id="d-img" src="" alt=""/>
+    <div class="dp-name" id="d-name"></div>
+    <div class="dp-r" id="d-r"></div>
+    <div class="dp-score" id="d-dp"></div>
+    <button class="dp-close" onclick="closeDetail()">CLOSE</button>
+  </div>
+</div>
+
+<script>
+const NOUNS=['Burger','Clown','Gamer','Ninja','Shark','Wizard','Toaster','Sock','Potato','Landlord','Pigeon','Goblin','Chicken','Donut','Banana'];
+const ADJS=['Infinite','Quantum','Cosmic','Cybernetic','Toxic','Neon','Cursed','Brain-Rotted','Deep-Fried','Wet','Tax-Evading','Hypebeast','Radioactive','Chronically-Online','Explosive','Super-Secret'];
+const RARITIES=['Common','Rare','Epic','Legendary','Mythic','Transcendent','Omega','Singularity'];
+const RC={Common:'var(--common)',Rare:'var(--rare)',Epic:'var(--epic)',Legendary:'var(--legendary)',Mythic:'var(--mythic)',Transcendent:'var(--transcendent)',Omega:'var(--omega)',Singularity:'var(--singularity)'};
+const RW={Common:2,Rare:2,Epic:3,Legendary:4,Mythic:5,Transcendent:6,Omega:7,Singularity:8};
+const RS={Common:1,Rare:2,Epic:3,Legendary:4,Mythic:5,Transcendent:6,Omega:7,Singularity:8};
+const RB={Mythic:100,Transcendent:250,Omega:500,Singularity:1000};
+const FUSE_RECIPE={Common:{n:2,to:'Rare'},Rare:{n:4,to:'Epic'},Epic:{n:8,to:'Legendary'},Legendary:{n:16,to:'Mythic'},Mythic:{n:32,to:'Transcendent'},Transcendent:{n:64,to:'Omega'},Omega:{n:128,to:'Singularity'}};
+const IMG_SEED={Burger:10,Clown:20,Gamer:30,Ninja:40,Shark:50,Wizard:60,Toaster:70,Sock:80,Potato:90,Landlord:100,Pigeon:110,Goblin:120,Chicken:130,Donut:140,Banana:150};
+
+function rng(arr){return arr[Math.floor(Math.random()*arr.length)];}
+
+function rollRarity(){
+  const o={Common:.50,Rare:.25,Epic:.14,Legendary:.07,Mythic:.03,Transcendent:.0085,Omega:.0014,Singularity:.0001};
+  let r=Math.random(),c=0;
+  for(const[k,v]of Object.entries(o)){c+=v;if(r<c)return k;}
+  return 'Common';
+}
+
+function genName(rarity,anchor){
+  const wc=RW[rarity];
+  const noun=anchor||rng(NOUNS);
+  if(wc<=2)return{words:[noun,'Dude'],anchor:noun};
+  const prefixes=[];let adjOnly=false;
+  for(let i=0;i<wc-2;i++){
+    if(adjOnly||Math.random()<.5){prefixes.unshift(rng(ADJS));adjOnly=true;}
+    else{prefixes.unshift(rng(NOUNS));}
+  }
+  return{words:[...prefixes,noun,'Dude'],anchor:noun};
+}
+
+function genCard(rarity,anchor){
+  const{words,anchor:a}=genName(rarity,anchor);
+  const shiny=Math.random()<.01;
+  const displayWords=shiny?['Shiny ✨',...words]:words;
+  const name=displayWords.join(' ');
+  const letters=words.join('').replace(/[^a-zA-Z]/g,'').length;
+  const dp=(letters*10+(RB[rarity]||0))*(shiny?2:1);
+  const seed=(IMG_SEED[a]||50)+Math.floor(Math.random()*5);
+  return{id:Math.random().toString(36).slice(2),name,words,rarity,dp,shiny,anchor:a,seed,locked:false,ts:Date.now()};
+}
+
+function genPack(){
+  const cards=[];
+  for(let i=0;i<5;i++)cards.push(genCard(rollRarity()));
+  cards.sort((a,b)=>RARITIES.indexOf(a.rarity)-RARITIES.indexOf(b.rarity));
+  return cards;
+}
+
+function makeStars(rarity,small){
+  const n=RS[rarity];const c=RC[rarity];
+  const cls=small?'sstar':'star';
+  return Array.from({length:n},()=>`<div class="${cls}" style="background:${c}"></div>`).join('');
+}
+
+const fxCv=document.getElementById('fx');
+const fxCtx=fxCv.getContext('2d');
+let pts=[];
+function resizeFX(){const r=document.getElementById('app').getBoundingClientRect();fxCv.width=r.width;fxCv.height=r.height;}
+window.addEventListener('resize',resizeFX);resizeFX();
+function burst(count,color){
+  const r=document.getElementById('app').getBoundingClientRect();
+  const cx=r.width/2,cy=r.height*.4;
+  for(let i=0;i<count;i++){
+    const a=Math.random()*Math.PI*2,s=Math.random()*10+2;
+    pts.push({x:cx,y:cy,vx:Math.cos(a)*s,vy:Math.sin(a)*s-3,r:Math.random()*4+1.5,a:1,color});
+  }
+}
+(function loop(){
+  fxCtx.clearRect(0,0,fxCv.width,fxCv.height);
+  pts=pts.filter(p=>{
+    p.x+=p.vx;p.y+=p.vy;p.vy+=.28;p.a-=.022;
+    if(p.a<=0)return false;
+    fxCtx.beginPath();fxCtx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    fxCtx.fillStyle=p.color;fxCtx.globalAlpha=p.a;fxCtx.fill();
+    return true;
+  });
+  fxCtx.globalAlpha=1;
+  requestAnimationFrame(loop);
+})();
+
+function vib(p){if(navigator&&navigator.vibrate)navigator.vibrate(p);}
+
+function rarityPop(text,color){
+  const d=document.createElement('div');d.className='rpop';
+  d.textContent=text;d.style.color=color;d.style.textShadow=`0 0 25px ${color}`;
+  document.body.appendChild(d);setTimeout(()=>d.remove(),950);
+}
+
+let PACK=[];
+
+function startPack(){
+  PACK=genPack();
+  buildStack();
+  document.getElementById('arena').classList.add('on');
+  document.getElementById('hint').classList.add('on');
+  updateCtr();
+}
+
+function closeArena(){
+  document.getElementById('arena').classList.remove('on');
+  document.getElementById('hint').classList.remove('on');
+  document.getElementById('stack').innerHTML='';
+  document.getElementById('ctr').textContent='';
+  PACK=[];
+}
+
+function updateCtr(){
+  const n=document.getElementById('stack').querySelectorAll('.card').length;
+  document.getElementById('ctr').textContent=n>0?n+' card'+(n===1?'':'s')+' remaining':'';
+}
+
+function imgUrl(card,w,h){
+  return `https://picsum.photos/seed/${card.seed}/${w}/${h}`;
+}
+
+function buildStack(){
+  const stack=document.getElementById('stack');
+  stack.innerHTML='';
+  PACK.forEach((card,i)=>{
+    const el=buildCardEl(card);
+    el.style.zIndex=PACK.length-i;
+    const offset=(PACK.length-1-i);
+    el.style.transform=`translateY(${offset*4}px) scale(${1-offset*.018})`;
+    stack.prepend(el);
+  });
+  const top=stack.lastElementChild;
+  if(top)bindSwipe(top);
+}
+
+function buildCardEl(card){
+  const r=card.rarity;const col=RC[r];
+  const el=document.createElement('div');
+  el.className='card';el.dataset.r=r;el._card=card;
+  let extras='';
+  if(r==='Omega'||r==='Singularity'){
+    const cls=r==='Omega'?'chain-o':'chain-s';
+    extras+=`<div class="chain top ${cls}"></div><div class="chain bot ${cls}"></div>`;
+  }
+  if(card.shiny)extras+=`<div class="shiny-layer"></div>`;
+  el.innerHTML=`${extras}
+    <img class="card-img" src="${imgUrl(card,400,300)}" alt="${card.anchor}" loading="lazy"/>
+    <div class="card-body">
+      <div class="card-rarity" style="color:${col}">${r}</div>
+      <div class="card-name">${card.name}</div>
+      <div class="card-stars">${makeStars(r,false)}</div>
+      <div class="card-dp" style="color:${col}">${card.dp} DP</div>
+    </div>`;
+  return el;
+}
+
+function triggerEffect(el,card){
+  const r=card.rarity;const col=RC[r];
+  if(r==='Epic'){
+    document.getElementById('arena').classList.add('shaking');
+    setTimeout(()=>document.getElementById('arena').classList.remove('shaking'),160);
+    burst(22,'#cc44ff');vib([30,20,30]);rarityPop('EPIC',col);
+  } else if(r==='Legendary'){
+    goldFlash(el);burst(32,'#ffaa00');vib([60,30,60]);rarityPop('LEGENDARY',col);
+  } else if(r==='Mythic'){
+    mythicReveal(el);burst(40,'#ff2244');vib([100,50,100]);rarityPop('MYTHIC',col);
+  } else if(['Transcendent','Omega','Singularity'].includes(r)){
+    slotReveal(el,card);
+  }
+}
+
+function goldFlash(el){
+  const m=document.createElement('div');m.className='mask mask-gold';el.appendChild(m);
+  setTimeout(()=>{
+    m.style.transition='transform .3s ease';m.style.transform='scaleX(0)';
+    setTimeout(()=>m.remove(),320);
+  },260);
+}
+
+function mythicReveal(el){
+  const m=document.createElement('div');m.className='mask mask-black';
+  m.style.border='1px solid var(--mythic)';m.style.boxShadow='0 0 40px #ff224444';
+  const ic=document.createElement('div');ic.className='mask-icon';ic.textContent='💀';
+  m.appendChild(ic);el.appendChild(m);
+  setTimeout(()=>{
+    const t=document.createElement('div');const b=document.createElement('div');
+    [t,b].forEach(h=>{Object.assign(h.style,{position:'absolute',left:'0',right:'0',height:'50%',background:'#04040a',zIndex:'9',transition:'transform .4s ease'});});
+    t.style.top='0';b.style.bottom='0';
+    m.remove();el.appendChild(t);el.appendChild(b);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{t.style.transform='translateY(-110%)';b.style.transform='translateY(110%)'}));
+    setTimeout(()=>{t.remove();b.remove();},460);
+  },650);
+}
+
+function slotReveal(el,card){
+  const r=card.rarity;const col=RC[r];
+  const words=card.name.split(' ');
+  const box=document.createElement('div');box.className='slot-box';
+  box.style.border=`1px solid ${col}44`;
+  const row=document.createElement('div');row.className='slot-words';
+  const hint=document.createElement('div');hint.className='slot-hint';hint.textContent='TAP TO SKIP';
+  box.appendChild(row);box.appendChild(hint);el.appendChild(box);
+  const CHARS='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?#';
+  const rc=()=>CHARS[Math.floor(Math.random()*CHARS.length)];
+  const wEls=words.map(w=>{
+    const wd=document.createElement('div');wd.className='sw live';wd.style.color=col;wd.textContent=rc();
+    row.appendChild(wd);return wd;
+  });
+  const ivs=words.map((_,i)=>setInterval(()=>{if(!wEls[i].classList.contains('locked'))wEls[i].textContent=rc();},55));
+  let lockedCount=0,done=false;
+  function lockWord(i){
+    if(wEls[i].classList.contains('locked'))return;
+    clearInterval(ivs[i]);
+    wEls[i].textContent=words[i];
+    wEls[i].classList.remove('live');wEls[i].classList.add('locked');
+    vib(15);lockedCount++;
+    if(lockedCount===words.length&&!done){done=true;finish();}
+  }
+  function finish(){
+    hint.textContent='';
+    setTimeout(()=>{
+      box.style.transition='transform .25s ease,opacity .25s ease';
+      box.style.transform='scale(0)';box.style.opacity='0';
+      setTimeout(()=>{if(box.parentNode)box.remove();},280);
+      if(r==='Singularity'){burst(90,'#ffe566');vib([200,80,200,80,300]);}
+      else if(r==='Omega'){burst(55,'#ff44ff');vib([30,15,30,15,60]);}
+      else burst(35,'#00eeff');
+    },250);
+  }
+  function skipAll(){words.forEach((_,i)=>lockWord(i));}
+  box.addEventListener('click',skipAll,{once:true});
+  box.addEventListener('touchstart',skipAll,{once:true,passive:true});
+  function autoLock(idx){if(idx<0)return;setTimeout(()=>{if(!done){lockWord(idx);autoLock(idx-1);}},620);}
+  autoLock(words.length-1);
+}
+
+function bindSwipe(el){
+  let sx=0,dragging=false,gone=false;
+  function start(e){if(gone)return;dragging=true;sx=(e.touches?e.touches[0]:e).clientX;el.style.transition='none';}
+  function move(e){
+    if(!dragging||gone)return;
+    const dx=(e.touches?e.touches[0]:e).clientX-sx;
+    el.style.transform=`translateX(${dx}px) rotate(${dx*.045}deg)`;
+    e.preventDefault();
+  }
+  function end(e){
+    if(!dragging||gone)return;dragging=false;
+    const dx=(e.changedTouches?e.changedTouches[0]:e).clientX-sx;
+    if(Math.abs(dx)>80){
+      gone=true;
+      el.style.transition='transform .32s ease';
+      el.style.transform=`translateX(${dx>0?520:-520}px) rotate(${dx>0?18:-18}deg)`;
+      setTimeout(()=>dismissCard(el),340);
+    } else {
+      el.style.transition='transform .22s ease';
+      el.style.transform='';
+    }
+  }
+  el.addEventListener('mousedown',start);
+  el.addEventListener('touchstart',start,{passive:false});
+  document.addEventListener('mousemove',move);
+  document.addEventListener('touchmove',move,{passive:false});
+  document.addEventListener('mouseup',end);
+  document.addEventListener('touchend',end);
+}
+
+function dismissCard(el){
+  el.remove();updateCtr();
+  const stack=document.getElementById('stack');
+  const remaining=[...stack.querySelectorAll('.card')];
+  if(remaining.length===0){
+    const col=load();PACK.forEach(c=>col.push(c));save(col);
+    closeArena();
+    goView('inv',document.getElementById('nb-inv'));
+    return;
+  }
+  remaining.forEach((c,i)=>{
+    const offset=(remaining.length-1-i);
+    c.style.transition='transform .25s ease';
+    c.style.transform=`translateY(${offset*4}px) scale(${1-offset*.018})`;
+  });
+  const top=remaining[remaining.length-1];
+  top.style.zIndex=100;
+  setTimeout(()=>{
+    top.style.transition='transform .2s ease';
+    top.style.transform='';
+    bindSwipe(top);
+    triggerEffect(top,top._card);
+  },60);
+}
+
+function load(){try{return JSON.parse(localStorage.getItem('dp5')||'[]');}catch{return[];}}
+function save(c){localStorage.setItem('dp5',JSON.stringify(c));}
+
+function goView(name,el){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('v-'+name).classList.add('on');
+  el.classList.add('on');
+  if(name==='inv')renderInv();
+  if(name==='fuse')renderFuse();
+}
+
+let activeFilter='All';
+const CHIP_RARITIES=['All',...RARITIES];
+const CHIP_COLORS={All:'var(--txt)',Common:'var(--common)',Rare:'var(--rare)',Epic:'var(--epic)',Legendary:'var(--legendary)',Mythic:'var(--mythic)',Transcendent:'var(--transcendent)',Omega:'var(--omega)',Singularity:'var(--singularity)'};
+
+function buildChips(){
+  const el=document.getElementById('chips');
+  el.innerHTML='';
+  CHIP_RARITIES.forEach(r=>{
+    const c=document.createElement('div');
+    c.className='chip'+(r==='All'?' on':'');
+    c.dataset.r=r;c.style.color=CHIP_COLORS[r];
+    c.textContent=r==='Transcendent'?'TRANSCEND':r==='Singularity'?'SINGUL':r.toUpperCase();
+    c.onclick=()=>setFilter(r,c);
+    el.appendChild(c);
+  });
+}
+buildChips();
+
+function setFilter(r,el){
+  activeFilter=r;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');renderInv();
+}
+
+function onSearch(v){
+  if(v.toLowerCase()==='admincore'){
+    addGodCards();
+    document.getElementById('inv-search').value='';
+    renderInv();return;
+  }
+  renderInv(v.toLowerCase());
+}
+
+function renderInv(search=''){
+  const col=load();
+  document.getElementById('inv-meta').textContent=col.length+' DUDE'+(col.length===1?'':'S');
+  let list=col.filter(c=>{
+    if(activeFilter!=='All'&&c.rarity!==activeFilter)return false;
+    if(search&&!c.name.toLowerCase().includes(search))return false;
+    return true;
+  }).sort((a,b)=>b.dp-a.dp);
+  const grid=document.getElementById('inv-grid');
+  if(!list.length){
+    grid.innerHTML=`<div class="empty"><div style="font-size:36px">📭</div><div>${col.length===0?'Open a pack to start.':'Nothing matches.'}</div></div>`;
+    return;
+  }
+  grid.innerHTML='';
+  list.forEach(card=>{
+    const c=RC[card.rarity];
+    const div=document.createElement('div');
+    div.className='icard';
+    div.style.borderColor=c;
+    div.style.boxShadow=`0 0 12px ${c}1a`;
+    div.innerHTML=`
+      <img src="${imgUrl(card,200,200)}" alt="${card.anchor}" loading="lazy"/>
+      <button class="lock-btn">${card.locked?'🔒':'🔓'}</button>
+      <div class="icard-body">
+        <div class="icard-name">${card.name}</div>
+        <div class="icard-dp" style="color:${c}">${card.dp} DP</div>
+        <div class="icard-stars">${makeStars(card.rarity,true)}</div>
+      </div>`;
+    div.querySelector('.lock-btn').addEventListener('click',e=>{e.stopPropagation();toggleLock(card.id);});
+    div.addEventListener('click',()=>openDetail(card));
+    grid.appendChild(div);
+  });
+}
+
+function toggleLock(id){
+  const col=load();const c=col.find(x=>x.id===id);
+  if(c){c.locked=!c.locked;save(col);renderInv();}
+}
+
+function addGodCards(){
+  const col=load();
+  const gods=[
+    {id:'_g1',name:'Supreme Omnipotent Cosmic Galaxy Burger Dude',words:['Supreme','Omnipotent','Cosmic','Galaxy','Burger','Dude'],rarity:'Singularity',dp:9999,shiny:true,anchor:'Burger',seed:10,locked:false,ts:Date.now(),sandbox:true},
+    {id:'_g2',name:'Infinite Quantum Neon Radioactive Wizard Dude',words:['Infinite','Quantum','Neon','Radioactive','Wizard','Dude'],rarity:'Singularity',dp:9999,shiny:true,anchor:'Wizard',seed:60,locked:false,ts:Date.now(),sandbox:true},
+    {id:'_g3',name:'Cybernetic Explosive Cursed Cosmic Ninja Dude',words:['Cybernetic','Explosive','Cursed','Cosmic','Ninja','Dude'],rarity:'Singularity',dp:9999,shiny:true,anchor:'Ninja',seed:40,locked:false,ts:Date.now(),sandbox:true},
+  ];
+  gods.forEach(g=>{if(!col.find(c=>c.id===g.id))col.push(g);});
+  save(col);burst(80,'#ffe566');vib([200,80,200,80,300]);
+}
+
+function openDetail(card){
+  const c=RC[card.rarity];
+  document.getElementById('d-img').src=imgUrl(card,600,400);
+  document.getElementById('d-name').textContent=card.name;
+  document.getElementById('d-r').textContent=card.rarity.toUpperCase();
+  document.getElementById('d-r').style.color=c;
+  document.getElementById('d-dp').textContent=card.dp+' DP';
+  document.getElementById('d-dp').style.color=c;
+  document.getElementById('detail').classList.add('on');
+}
+function closeDetail(){document.getElementById('detail').classList.remove('on');}
+
+function renderFuse(){
+  const col=load();
+  const fuseable=col.filter(c=>!c.locked&&!c.sandbox);
+  const groups={};
+  fuseable.forEach(c=>{
+    if(!groups[c.anchor])groups[c.anchor]={};
+    if(!groups[c.anchor][c.rarity])groups[c.anchor][c.rarity]=[];
+    groups[c.anchor][c.rarity].push(c);
+  });
+  const body=document.getElementById('fuse-body');
+  if(!Object.keys(groups).length){body.innerHTML='<div class="fuse-empty">Collect Dudes to start fusing.</div>';return;}
+  body.innerHTML='';
+  Object.entries(groups).sort(([a],[b])=>a.localeCompare(b)).forEach(([noun,tiers])=>{
+    const g=document.createElement('div');g.className='fg';
+    const head=document.createElement('div');head.className='fg-head';
+    head.innerHTML=`<div class="fg-noun">${noun}</div><div class="fg-arr">▾</div>`;
+    head.onclick=()=>g.classList.toggle('open');
+    const gb=document.createElement('div');gb.className='fg-body';
+    ['Common','Rare','Epic','Legendary','Mythic','Transcendent','Omega'].forEach(r=>{
+      const recipe=FUSE_RECIPE[r];if(!recipe)return;
+      const cards=tiers[r]||[];const n=cards.length;const need=recipe.n;
+      const row=document.createElement('div');row.className='fg-row';
+      row.innerHTML=`
+        <div class="fg-rl" style="color:${RC[r]}">${r}</div>
+        <div class="fg-cnt">${n}/${need}<br><span style="font-size:8px">→ ${recipe.to}</span></div>
+        <button class="fg-btn" style="color:${RC[r]};border-color:${RC[r]}" ${n>=need?'':'disabled'} onclick="execFuse('${noun}','${r}')">FUSE</button>`;
+      gb.appendChild(row);
+    });
+    g.appendChild(head);g.appendChild(gb);body.appendChild(g);
+  });
+}
+
+function execFuse(noun,rarity){
+  let col=load();const recipe=FUSE_RECIPE[rarity];if(!recipe)return;
+  const pool=col.filter(c=>c.anchor===noun&&c.rarity===rarity&&!c.locked&&!c.sandbox);
+  if(pool.length<recipe.n)return;
+  const remove=new Set(pool.slice(0,recipe.n).map(c=>c.id));
+  col=col.filter(c=>!remove.has(c.id));
+  const nc=genCard(recipe.to,noun);
+  col.push(nc);save(col);
+  burst(55,RC[recipe.to]);vib([40,20,80]);
+  renderFuse();
+}
+
+renderInv();
+</script>
+</body>
+</html>
